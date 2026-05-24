@@ -1,38 +1,35 @@
 #!/bin/bash
-# 自动提交脚本 - 每分钟修改文件并提交
+# 自动提交脚本 - 提交12次后停止
 
 set -e
 
 REPO_DIR="/root/useless-project"
 COUNTER_FILE="$REPO_DIR/counter.txt"
 LOG_FILE="$REPO_DIR/commit.log"
-COMMIT_COUNT=0
+MAX_COMMITS=12
 
-echo "=== 自动提交脚本启动于 $(date) ===" | tee -a "$LOG_FILE"
-echo "按 Ctrl+C 停止" | tee -a "$LOG_FILE"
+echo "=== 自动提交脚本启动于 $(date) ===" | tee "$LOG_FILE"
+echo "目标: 提交 $MAX_COMMITS 次" | tee -a "$LOG_FILE"
 
-while true; do
-    COMMIT_COUNT=$((COMMIT_COUNT + 1))
+# 清空计数器
+> "$COUNTER_FILE"
+
+for (( i=1; i<=MAX_COMMITS; i++ )); do
     TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
-    echo "[$TIMESTAMP] 提交 #$COMMIT_COUNT" >> "$COUNTER_FILE"
+    echo "[$TIMESTAMP] 提交 #$i" >> "$COUNTER_FILE"
     
     cd "$REPO_DIR"
     git add -A
-    git commit -m "chore: 无用的提交 #$COMMIT_COUNT - $TIMESTAMP"
+    git commit -m "chore: 无用的提交 #$i - $TIMESTAMP"
     
-    echo "[$TIMESTAMP] 提交 #$COMMIT_COUNT 完成" | tee -a "$LOG_FILE"
+    echo "[$TIMESTAMP] 提交 #$i 完成" | tee -a "$LOG_FILE"
     
-    # 推送到 GitHub（每隔 5 次推送一次，减少推送频率）
-    if (( COMMIT_COUNT % 5 == 0 )); then
-        echo "[$TIMESTAMP] 推送到 GitHub..." | tee -a "$LOG_FILE"
-        git push origin main 2>&1 | tee -a "$LOG_FILE"
-    fi
-    
-    if [ $? -eq 0 ]; then
+    if (( i < MAX_COMMITS )); then
         echo "等待 60 秒..." | tee -a "$LOG_FILE"
         sleep 60
-    else
-        echo "提交失败，退出" | tee -a "$LOG_FILE"
-        exit 1
     fi
 done
+
+echo "=== 12次提交完成，推送到 GitHub ===" | tee -a "$LOG_FILE"
+git push origin main 2>&1 | tee -a "$LOG_FILE"
+echo "=== 全部完成！===" | tee -a "$LOG_FILE"
